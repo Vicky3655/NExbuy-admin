@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Nexbuy SuperAdmin Portal - UNN & Nsukka Hub</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+  <!-- ================= 1. ADMIN PIN LOCK SCREEN ================= -->
+  <div id="admin-lock-screen" class="lock-overlay">
+    <div class="lock-card">
+      <div class="brand-badge">
+        <i class="fa-solid fa-shield-halved"></i>
+      </div>
+      <h2>Nexbuy Admin</h2>
+      <p class="lock-subtitle">UNN Marketplace Control & Moderation Hub</p>
+
+      <form id="admin-pin-form" onsubmit="unlockAdmin(event)">
+        <div class="pin-group">
+          <label>SuperAdmin Access PIN</label>
+          <div class="input-wrap">
+            <i class="fa-solid fa-key"></i>
+            <input type="password" id="admin-pin-input" placeholder="Enter 4-digit PIN" maxlength="8" autofocus required>
+          </div>
+          <small class="pin-hint">Default UNN Admin PIN: <strong>1960</strong></small>
+        </div>
+        <button type="submit" class="btn-glow-primary">
+          <span>Authorize Access</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ================= 2. MAIN ADMIN DASHBOARD ================= -->
+  <div id="admin-app" class="admin-layout hidden">
+    
+    <!-- Top Navigation Header -->
+    <header class="admin-topbar">
+      <div class="topbar-left">
+        <div class="admin-logo">
+          <i class="fa-solid fa-rocket"></i>
+        </div>
+        <div>
+          <h3>Nexbuy <span>Admin</span></h3>
+          <span class="status-live"><span class="pulse-dot"></span> UNN Campus Node Live</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn-refresh" onclick="refreshAdminData()" title="Reload Stats">
+          <i class="fa-solid fa-rotate"></i>
+        </button>
+        <button class="btn-lock" onclick="lockAdmin()" title="Lock Portal">
+          <i class="fa-solid fa-lock"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Admin Navigation Tabs -->
+    <nav class="admin-tabs">
+      <button class="tab-btn active" onclick="switchAdminTab('monitor-tab')">
+        <i class="fa-solid fa-chart-pie"></i>
+        <span>Market Monitor</span>
+      </button>
+      <button class="tab-btn" onclick="switchAdminTab('users-tab')">
+        <i class="fa-solid fa-users-gear"></i>
+        <span>Sellers & Monetize</span>
+      </button>
+      <button class="tab-btn" onclick="switchAdminTab('products-tab')">
+        <i class="fa-solid fa-boxes-stacked"></i>
+        <span>Listings Feed</span>
+      </button>
+    </nav>
+
+    <!-- Main Content Panels -->
+    <main class="admin-main">
+
+      <!-- ================= TAB 1: MARKET MONITOR ================= -->
+      <section id="monitor-tab" class="admin-panel active">
+        
+        <!-- Metrics 4-Grid -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-icon purple"><i class="fa-solid fa-coins"></i></div>
+            <div class="metric-details">
+              <span class="m-label">Gross Merchandise Value (GMV)</span>
+              <h3 id="stat-gmv">₦0</h3>
+              <small class="m-sub">Total student inventory on UNN campus</small>
+            </div>
+          </div>
+
+          <div class="metric-card glow-card">
+            <div class="metric-icon cyan"><i class="fa-solid fa-sack-dollar"></i></div>
+            <div class="metric-details">
+              <span class="m-label">Platform Revenue</span>
+              <h3 id="stat-revenue">₦0</h3>
+              <small class="m-sub">Pro tiers (₦2,500/mo) & listing boosts</small>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon pink"><i class="fa-solid fa-bag-shopping"></i></div>
+            <div class="metric-details">
+              <span class="m-label">Active Listings</span>
+              <h3 id="stat-listings-count">0</h3>
+              <small class="m-sub">Products available across Nsukka</small>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon green"><i class="fa-solid fa-user-check"></i></div>
+            <div class="metric-details">
+              <span class="m-label">Permitted Sellers</span>
+              <h3 id="stat-sellers-count">0</h3>
+              <small class="m-sub">Verified UNN student accounts</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Campus Distribution Card -->
+        <div class="chart-card">
+          <div class="card-header">
+            <h4><i class="fa-solid fa-location-dot"></i> Trade Activity by Hostel Area</h4>
+            <span class="badge-tag">Nsukka Campus</span>
+          </div>
+          <div class="hostel-progress-list">
+            <div class="progress-row">
+              <div class="row-meta">
+                <span>Mary Slessor Hostel</span>
+                <strong id="bar-val-mary">40%</strong>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width: 40%;"></div></div>
+            </div>
+
+            <div class="progress-row">
+              <div class="row-meta">
+                <span>Franco Hostel (UNN)</span>
+                <strong id="bar-val-franco">35%</strong>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width: 35%; background: var(--neon-magenta);"></div></div>
+            </div>
+
+            <div class="progress-row">
+              <div class="row-meta">
+                <span>Hilltop & Odenigwe</span>
+                <strong id="bar-val-hilltop">15%</strong>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width: 15%; background: var(--neon-cyan);"></div></div>
+            </div>
+
+            <div class="progress-row">
+              <div class="row-meta">
+                <span>Nkrumah & UNEC</span>
+                <strong id="bar-val-others">10%</strong>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width: 10%; background: #f59e0b;"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fast Actions Widget -->
+        <div class="quick-banner">
+          <div class="qb-text">
+            <h4><i class="fa-brands fa-ethereum"></i> Web3 Campus Expansion</h4>
+            <p>Monetize top student sellers automatically or issue crypto campus bounties.</p>
+          </div>
+          <button class="btn-outline-glow" onclick="boostAllMonetizedSellers()">Boost All Pro Sellers</button>
+        </div>
+      </section>
+
+      <!-- ================= TAB 2: SELLERS & MONETIZATION ================= -->
+      <section id="users-tab" class="admin-panel">
+        
+        <div class="panel-header-actions">
+          <div class="search-input-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="user-search" placeholder="Search student name, hostel, phone..." oninput="filterUsersList()">
+          </div>
+          <button class="btn-add-user" onclick="openAddUserModal()">
+            <i class="fa-solid fa-user-plus"></i> Add Student
+          </button>
+        </div>
+
+        <div class="table-container">
+          <div id="users-card-list" class="users-card-list">
+            <!-- User permission rows injected dynamically -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB 3: PRODUCTS & MODERATION ================= -->
+      <section id="products-tab" class="admin-panel">
+        <div class="panel-header-actions">
+          <div class="search-input-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="product-search" placeholder="Search products by title, price, hostel..." oninput="filterProductsList()">
+          </div>
+        </div>
+
+        <div id="admin-products-grid" class="admin-products-grid">
+          <!-- Product moderation cards injected dynamically -->
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Toast Notification Alert -->
+  <div id="toast" class="toast">Action completed</div>
+
+  <script src="admin.js"></script>
+</body>
+</html>
