@@ -28,12 +28,12 @@
 
       <form id="admin-pin-form" onsubmit="unlockAdmin(event)">
         <div class="pin-group">
-          <label>SuperAdmin Access PIN</label>
+          <label>SuperAdmin Access Passphrase</label>
           <div class="input-wrap">
             <i class="fa-solid fa-key"></i>
-            <input type="password" id="admin-pin-input" placeholder="Enter 4-digit PIN" maxlength="8" autofocus required>
+            <input type="password" id="admin-pin-input" placeholder="Enter admin passphrase" autofocus required>
           </div>
-          <small class="pin-hint">Default UNN Admin PIN: <strong>1960</strong></small>
+          <small class="pin-hint">Checked securely on the server — set via the ADMIN_SECRET Edge Function secret.</small>
         </div>
         <button type="submit" class="btn-glow-primary">
           <span>Authorize Access</span>
@@ -102,11 +102,11 @@
           </div>
 
           <div class="metric-card glow-card">
-            <div class="metric-icon cyan"><i class="fa-solid fa-sack-dollar"></i></div>
+            <div class="metric-icon cyan"><i class="fa-solid fa-clock"></i></div>
             <div class="metric-details">
-              <span class="m-label">Platform Revenue</span>
-              <h3 id="stat-revenue">₦0</h3>
-              <small class="m-sub">Pro tiers (₦2,500/mo) & listing boosts</small>
+              <span class="m-label">Pending Approvals</span>
+              <h3 id="stat-revenue">0</h3>
+              <small class="m-sub">Users + listings awaiting your review</small>
             </div>
           </div>
 
@@ -173,10 +173,10 @@
         <!-- Fast Actions Widget -->
         <div class="quick-banner">
           <div class="qb-text">
-            <h4><i class="fa-brands fa-ethereum"></i> Web3 Campus Expansion</h4>
-            <p>Monetize top student sellers automatically or issue crypto campus bounties.</p>
+            <h4><i class="fa-solid fa-clipboard-check"></i> Moderation Queue</h4>
+            <p>Review pending student listings before they go live on campus.</p>
           </div>
-          <button class="btn-outline-glow" onclick="boostAllMonetizedSellers()">Boost All Pro Sellers</button>
+          <button class="btn-outline-glow" onclick="switchAdminTab('products-tab')">Review Listings</button>
         </div>
       </section>
 
@@ -186,11 +186,8 @@
         <div class="panel-header-actions">
           <div class="search-input-box">
             <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="user-search" placeholder="Search student name, hostel, phone..." oninput="filterUsersList()">
+            <input type="text" id="user-search" placeholder="Search student name, hostel, telegram..." oninput="filterUsersList()">
           </div>
-          <button class="btn-add-user" onclick="openAddUserModal()">
-            <i class="fa-solid fa-user-plus"></i> Add Student
-          </button>
         </div>
 
         <div class="table-container">
