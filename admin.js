@@ -1,111 +1,104 @@
-// Default UNN SuperAdmin Master PIN
-const SUPERADMIN_PIN = "1960";
+// ============================================================
+// Nexbuy Admin — now backed by real data via the admin-api Edge
+// Function, instead of a hardcoded PIN and a localStorage array that
+// had no connection to the live app at all.
+//
+// The passphrase is never checked in this file. It's sent to
+// admin-api on every request, which compares it against the
+// ADMIN_SECRET secret server-side — the only place that comparison
+// happens. This file only ever sees whatever the admin typed in.
+// ============================================================
 
-// Fallback Default UNN Users Database (Synced with Nexbuy App)
-const fallbackUsers = [
-  {
-    id: "usr_1",
-    name: "Chidubem Okeke",
-    location: "Mary Slessor Hostel",
-    phone: "08123456789",
-    canSell: true,
-    isMonetized: true,
-    tier: "Pro Vendor (₦2,500/mo)"
-  },
-  {
-    id: "usr_2",
-    name: "Emeka Alozie",
-    location: "Franco Hostel (UNN)",
-    phone: "08087654321",
-    canSell: true,
-    isMonetized: false,
-    tier: "Free Student"
-  },
-  {
-    id: "usr_3",
-    name: "Ngozi Eze",
-    location: "Nkrumah Hostel",
-    phone: "09011223344",
-    canSell: false, // Suspended by admin
-    isMonetized: false,
-    tier: "Restricted"
+// TODO: same project as app.js — Project Settings -> API
+const SUPABASE_URL = "https://tartoasyifwxgfgfurep.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhcnRvYXN5aWZ3eGdmZ2Z1cmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0MDQzODcsImV4cCI6MjA5OTk4MDM4N30.TUjeSDs0zCCPiPtGjOBxghjOIyZfkga8nLoV39Fbj6k";
+
+let adminUsers = [];
+let adminProducts = [];
+
+// Kept only for this tab session (sessionStorage clears when the tab
+// closes) — resent with every admin-api call since there's no separate
+// login/session token, just the passphrase itself.
+let adminSecret = sessionStorage.getItem('nexbuy_admin_secret') || null;
+
+async function callAdminApi(action, extra) {
+  if (SUPABASE_URL.includes('YOUR-PROJECT-REF') || SUPABASE_ANON_KEY.includes('YOUR-ANON')) {
+    throw new Error('admin.js still has placeholder Supabase values — set SUPABASE_URL and SUPABASE_ANON_KEY.');
   }
-];
 
-// Fallback Default UNN Products
-const fallbackProducts = [
-  {
-    id: 1,
-    sellerId: "usr_1",
-    title: "GST 101 & 103 Textbook Pack",
-    price: 3500,
-    category: "Academics",
-    location: "Mary Slessor Hostel",
-    contact: "08123456789",
-    image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&q=80",
-    desc: "Complete first year package with summarized past questions.",
-    boosted: true
-  },
-  {
-    id: 2,
-    sellerId: "usr_2",
-    title: "HP Pavilion 15 (8GB RAM / 256 SSD)",
-    price: 185000,
-    category: "Gadgets",
-    location: "Franco Hostel (UNN)",
-    contact: "08087654321",
-    image: "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=400&q=80",
-    desc: "Battery health is good. Suitable for coding and assignments.",
-    boosted: false
-  },
-  {
-    id: 3,
-    sellerId: "usr_1",
-    title: "Vintage Denim Jacket",
-    price: 7000,
-    category: "Fashion",
-    location: "Nkrumah Hostel",
-    contact: "09011223344",
-    image: "https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=400&q=80",
-    desc: "Oversized, UNN campus style.",
-    boosted: false
+  let response;
+  try {
+    response = await fetch(`${SUPABASE_URL}/functions/v1/admin-api`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+      },
+      body: JSON.stringify({ adminSecret, action, ...extra })
+    });
+  } catch (err) {
+    throw new Error(`Could not reach Supabase (${err.message}).`);
   }
-];
 
-// Load live data from shared LocalStorage
-let adminUsers = JSON.parse(localStorage.getItem('nexbuy_users')) || fallbackUsers;
-let adminProducts = JSON.parse(localStorage.getItem('nexbuy_products')) || fallbackProducts;
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const reason = data.error || data.message || `HTTP ${response.status}`;
+    throw new Error(reason);
+  }
+  return data;
+}
 
-// ================= 1. PIN AUTHENTICATION =================
-function unlockAdmin(e) {
+// ================= 1. PIN / PASSPHRASE AUTHENTICATION =================
+async function unlockAdmin(e) {
   e.preventDefault();
-  const enteredPin = document.getElementById('admin-pin-input').value.trim();
+  const entered = document.getElementById('admin-pin-input').value.trim();
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
 
-  if (enteredPin === SUPERADMIN_PIN) {
+  adminSecret = entered;
+  try {
+    // list-users doubles as the "is this passphrase correct" check —
+    // if it's wrong, admin-api rejects it before touching any data.
+    const { users } = await callAdminApi('list-users');
+    adminUsers = users;
+    sessionStorage.setItem('nexbuy_admin_secret', adminSecret);
+
     document.getElementById('admin-lock-screen').classList.add('hidden');
     document.getElementById('admin-app').classList.remove('hidden');
-    sessionStorage.setItem('nexbuy_admin_auth', 'true');
     showToast("SuperAdmin Access Granted!");
-    refreshAdminData();
-  } else {
-    showToast("Incorrect Admin PIN. Access Denied!");
+    await refreshAdminData();
+  } catch (err) {
+    adminSecret = null;
+    showToast(err.message || "Incorrect Admin Passphrase. Access Denied!");
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
   }
 }
 
 function lockAdmin() {
-  sessionStorage.removeItem('nexbuy_admin_auth');
+  adminSecret = null;
+  sessionStorage.removeItem('nexbuy_admin_secret');
   document.getElementById('admin-app').classList.add('hidden');
   document.getElementById('admin-lock-screen').classList.remove('hidden');
   document.getElementById('admin-pin-input').value = "";
   showToast("Admin Portal Locked.");
 }
 
-// Auto-login if session exists
-document.addEventListener('DOMContentLoaded', () => {
-  if (sessionStorage.getItem('nexbuy_admin_auth') === 'true') {
+// Auto-login if a passphrase is already cached for this tab session —
+// still re-validated against admin-api, not just trusted blindly.
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!adminSecret) return;
+  try {
+    const { users } = await callAdminApi('list-users');
+    adminUsers = users;
     document.getElementById('admin-lock-screen').classList.add('hidden');
     document.getElementById('admin-app').classList.remove('hidden');
-    refreshAdminData();
+    await refreshAdminData();
+  } catch {
+    // Cached passphrase no longer works — fall back to the lock screen.
+    adminSecret = null;
+    sessionStorage.removeItem('nexbuy_admin_secret');
   }
 });
 
@@ -130,35 +123,39 @@ function switchAdminTab(panelId) {
 
 // ================= 3. MINI MARKET MONITOR & STATS =================
 function calculateMonitorStats() {
-  // Pull fresh state from LocalStorage in case student app made changes
-  adminUsers = JSON.parse(localStorage.getItem('nexbuy_users')) || fallbackUsers;
-  adminProducts = JSON.parse(localStorage.getItem('nexbuy_products')) || fallbackProducts;
+  const gmv = adminProducts
+    .filter(p => p.approved)
+    .reduce((sum, item) => sum + Number(item.price || 0), 0);
 
-  // 1. Gross Merchandise Value
-  const gmv = adminProducts.reduce((sum, item) => sum + Number(item.price || 0), 0);
-  
-  // 2. Monetization Platform Revenue (Pro Vendors ₦2,500/mo + Boosted Ads ₦500 each)
-  const proVendors = adminUsers.filter(u => u.isMonetized).length;
-  const boostedListings = adminProducts.filter(p => p.boosted).length;
-  const totalRevenue = (proVendors * 2500) + (boostedListings * 500);
-
-  // 3. Allowed Sellers
-  const allowedSellers = adminUsers.filter(u => u.canSell).length;
+  const pendingProducts = adminProducts.filter(p => !p.approved).length;
+  const pendingUsers = adminUsers.filter(u => !u.can_sell).length;
+  const approvedListings = adminProducts.filter(p => p.approved).length;
+  const allowedSellers = adminUsers.filter(u => u.can_sell).length;
 
   document.getElementById('stat-gmv').innerText = `₦${gmv.toLocaleString()}`;
-  document.getElementById('stat-revenue').innerText = `₦${totalRevenue.toLocaleString()}`;
-  document.getElementById('stat-listings-count').innerText = adminProducts.length;
+  document.getElementById('stat-revenue').innerText = `${pendingProducts + pendingUsers}`;
+  document.getElementById('stat-listings-count').innerText = approvedListings;
   document.getElementById('stat-sellers-count').innerText = `${allowedSellers} / ${adminUsers.length}`;
 }
 
-function refreshAdminData() {
-  calculateMonitorStats();
-  renderUsersList(adminUsers);
-  renderProductsFeed(adminProducts);
-  showToast("Admin data synced with UNN nodes.");
+async function refreshAdminData() {
+  try {
+    const [{ users }, { products }] = await Promise.all([
+      callAdminApi('list-users'),
+      callAdminApi('list-products')
+    ]);
+    adminUsers = users;
+    adminProducts = products;
+    calculateMonitorStats();
+    renderUsersList(adminUsers);
+    renderProductsFeed(adminProducts);
+    showToast("Admin data synced with UNN nodes.");
+  } catch (err) {
+    showToast(err.message || "Could not refresh admin data.");
+  }
 }
 
-// ================= 4. USER PERMISSION & MONETIZATION =================
+// ================= 4. SELLER APPROVAL =================
 function renderUsersList(usersToRender) {
   const container = document.getElementById('users-card-list');
 
@@ -171,92 +168,47 @@ function renderUsersList(usersToRender) {
     <div class="user-row-card">
       <div class="user-main-info">
         <div>
-          <h5>${user.name}</h5>
-          <p><i class="fa-solid fa-location-dot"></i> ${user.location} • <i class="fa-solid fa-phone"></i> ${user.phone}</p>
+          <h5>${user.display_name || 'UNN Student'}</h5>
+          <p><i class="fa-solid fa-location-dot"></i> ${user.location || 'No hostel set'} • <i class="fa-brands fa-telegram"></i> ${user.telegram_username ? '@' + user.telegram_username : 'no username'}</p>
         </div>
-        <span class="tier-badge ${user.isMonetized ? 'pro' : 'free'}">
-          ${user.tier}
+        <span class="tier-badge ${user.can_sell ? 'pro' : 'free'}">
+          ${user.can_sell ? 'Approved' : 'Pending'}
         </span>
       </div>
 
-      <div class="user-controls">
-        <!-- Permission Control -->
-        <button class="btn-ctrl ${user.canSell ? 'allow' : 'block'}" onclick="toggleSellPermission('${user.id}')">
-          <i class="fa-solid ${user.canSell ? 'fa-circle-check' : 'fa-circle-xmark'}"></i>
-          <span>${user.canSell ? 'Sell Allowed' : 'Sell Suspended'}</span>
-        </button>
-
-        <!-- Monetization Control -->
-        <button class="btn-ctrl monetize ${user.isMonetized ? 'active-tier' : ''}" onclick="toggleMonetization('${user.id}')">
-          <i class="fa-solid fa-gem"></i>
-          <span>${user.isMonetized ? 'Pro (₦2,500/mo)' : 'Monetize User'}</span>
+      <div class="user-controls" style="grid-template-columns: 1fr;">
+        <button class="btn-ctrl ${user.can_sell ? 'block' : 'allow'}" onclick="toggleSellPermission('${user.id}', ${!user.can_sell})">
+          <i class="fa-solid ${user.can_sell ? 'fa-circle-xmark' : 'fa-circle-check'}"></i>
+          <span>${user.can_sell ? 'Suspend Selling' : 'Approve to Sell'}</span>
         </button>
       </div>
     </div>
   `).join('');
 }
 
-// Action: Grant or Revoke Selling Permission
-function toggleSellPermission(userId) {
-  const user = adminUsers.find(u => u.id === userId);
-  if (user) {
-    user.canSell = !user.canSell;
-    syncData();
+async function toggleSellPermission(userId, nextCanSell) {
+  try {
+    const { user } = await callAdminApi('set-can-sell', { userId, canSell: nextCanSell });
+    adminUsers = adminUsers.map(u => (u.id === userId ? user : u));
     renderUsersList(adminUsers);
     calculateMonitorStats();
-    showToast(`${user.name}: Selling permission ${user.canSell ? 'GRANTED' : 'REVOKED'}.`);
+    showToast(`${user.display_name}: selling ${nextCanSell ? 'APPROVED' : 'SUSPENDED'}.`);
+  } catch (err) {
+    showToast(err.message || "Couldn't update that user.");
   }
 }
 
-// Action: Toggle Monetize / Pro Vendor status
-function toggleMonetization(userId) {
-  const user = adminUsers.find(u => u.id === userId);
-  if (user) {
-    user.isMonetized = !user.isMonetized;
-    user.tier = user.isMonetized ? "Pro Vendor (₦2,500/mo)" : "Free Student";
-    syncData();
-    renderUsersList(adminUsers);
-    calculateMonitorStats();
-    showToast(`${user.name}: Set to ${user.tier}. Revenue updated.`);
-  }
-}
-
-// Action: Filter Users via search
 function filterUsersList() {
   const q = document.getElementById('user-search').value.toLowerCase();
-  const filtered = adminUsers.filter(u => 
-    u.name.toLowerCase().includes(q) || 
-    u.location.toLowerCase().includes(q) || 
-    u.phone.includes(q)
+  const filtered = adminUsers.filter(u =>
+    (u.display_name || '').toLowerCase().includes(q) ||
+    (u.location || '').toLowerCase().includes(q) ||
+    (u.telegram_username || '').toLowerCase().includes(q)
   );
   renderUsersList(filtered);
 }
 
-// Action: Add new verified student manual entry
-function openAddUserModal() {
-  const name = prompt("Enter Student Full Name:");
-  if (!name) return;
-  const location = prompt("Enter Hostel Location (e.g. Franco, Mary Slessor, Hilltop):", "Mary Slessor Hostel");
-  const phone = prompt("Enter WhatsApp Phone:", "08012345678");
-
-  const newUser = {
-    id: "usr_" + Date.now(),
-    name,
-    location: location || "UNN Campus",
-    phone: phone || "08000000000",
-    canSell: true,
-    isMonetized: false,
-    tier: "Free Student"
-  };
-
-  adminUsers.unshift(newUser);
-  syncData();
-  renderUsersList(adminUsers);
-  calculateMonitorStats();
-  showToast(`Student ${name} added and verified.`);
-}
-
-// ================= 5. PRODUCT MODERATION FEED =================
+// ================= 5. LISTING APPROVAL =================
 function renderProductsFeed(productsToRender) {
   const grid = document.getElementById('admin-products-grid');
 
@@ -270,14 +222,15 @@ function renderProductsFeed(productsToRender) {
       <img src="${item.image}" alt="${item.title}" class="admin-prod-thumb" onerror="this.src='https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'">
       <div class="admin-prod-info">
         <h5>${item.title}</h5>
-        <p>${item.location} • ${item.category}</p>
+        <p>${item.seller ? item.seller.display_name : 'Unknown seller'} • ${item.location}</p>
         <div class="admin-prod-price">₦${Number(item.price).toLocaleString()}</div>
       </div>
       <div class="admin-prod-actions">
-        <button class="btn-action-icon boost" onclick="toggleBoostItem(${item.id})">
-          <i class="fa-solid fa-bolt"></i> ${item.boosted ? 'Boosted' : 'Boost (₦500)'}
-        </button>
-        <button class="btn-action-icon delete" onclick="deleteItemAdmin(${item.id})">
+        ${item.approved
+          ? `<span class="btn-action-icon" style="color: var(--neon-green); border-color: var(--neon-green); cursor: default;"><i class="fa-solid fa-circle-check"></i> Live</span>`
+          : `<button class="btn-action-icon" style="color: var(--neon-green); border-color: var(--neon-green);" onclick="approveProduct('${item.id}')"><i class="fa-solid fa-check"></i> Approve</button>`
+        }
+        <button class="btn-action-icon delete" onclick="deleteItemAdmin('${item.id}')">
           <i class="fa-solid fa-trash"></i> Remove
         </button>
       </div>
@@ -285,58 +238,42 @@ function renderProductsFeed(productsToRender) {
   `).join('');
 }
 
-function deleteItemAdmin(id) {
-  if (confirm("Remove this listing from UNN Marketplace?")) {
-    adminProducts = adminProducts.filter(p => p.id !== id);
-    syncData();
+async function approveProduct(id) {
+  try {
+    const { product } = await callAdminApi('approve-product', { productId: id });
+    adminProducts = adminProducts.map(p => (p.id === id ? { ...p, ...product } : p));
     renderProductsFeed(adminProducts);
     calculateMonitorStats();
-    showToast("Listing deleted by Admin.");
+    showToast(`"${product.title}" approved and now live.`);
+  } catch (err) {
+    showToast(err.message || "Couldn't approve that listing.");
   }
 }
 
-function toggleBoostItem(id) {
-  const item = adminProducts.find(p => p.id === id);
-  if (item) {
-    item.boosted = !item.boosted;
-    syncData();
+async function deleteItemAdmin(id) {
+  if (!confirm("Remove this listing from UNN Marketplace?")) return;
+  try {
+    await callAdminApi('delete-product', { productId: id });
+    adminProducts = adminProducts.filter(p => p.id !== id);
     renderProductsFeed(adminProducts);
     calculateMonitorStats();
-    showToast(`Listing ${item.boosted ? 'BOOSTED (+₦500 Platform Fee)' : 'UNBOOSTED'}.`);
+    showToast("Listing deleted by Admin.");
+  } catch (err) {
+    showToast(err.message || "Couldn't delete that listing.");
   }
 }
 
 function filterProductsList() {
   const q = document.getElementById('product-search').value.toLowerCase();
-  const filtered = adminProducts.filter(p => 
-    p.title.toLowerCase().includes(q) || 
-    p.location.toLowerCase().includes(q) || 
+  const filtered = adminProducts.filter(p =>
+    p.title.toLowerCase().includes(q) ||
+    p.location.toLowerCase().includes(q) ||
     p.category.toLowerCase().includes(q)
   );
   renderProductsFeed(filtered);
 }
 
-function boostAllMonetizedSellers() {
-  let count = 0;
-  adminProducts.forEach(p => {
-    const seller = adminUsers.find(u => u.id === p.sellerId);
-    if (seller && seller.isMonetized) {
-      p.boosted = true;
-      count++;
-    }
-  });
-  syncData();
-  renderProductsFeed(adminProducts);
-  calculateMonitorStats();
-  showToast(`Auto-boosted ${count} listings for Pro Vendors.`);
-}
-
-// ================= 6. STORAGE SYNC & HELPERS =================
-function syncData() {
-  localStorage.setItem('nexbuy_users', JSON.stringify(adminUsers));
-  localStorage.setItem('nexbuy_products', JSON.stringify(adminProducts));
-}
-
+// ================= 6. HELPERS =================
 function showToast(text) {
   const toast = document.getElementById('toast');
   toast.innerText = text;
