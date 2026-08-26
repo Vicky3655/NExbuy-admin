@@ -10,8 +10,8 @@
 // ============================================================
 
 // TODO: same project as app.js — Project Settings -> API
-const SUPABASE_URL = "https://tartoasyifwxgfgfurep.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhcnRvYXN5aWZ3eGdmZ2Z1cmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0MDQzODcsImV4cCI6MjA5OTk4MDM4N30.TUjeSDs0zCCPiPtGjOBxghjOIyZfkga8nLoV39Fbj6k";
+const SUPABASE_URL = "https://YOUR-PROJECT-REF.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";
 
 let adminUsers = [];
 let adminProducts = [];
@@ -221,13 +221,21 @@ function renderProductsFeed(productsToRender) {
     <div class="admin-prod-card">
       <img src="${item.image}" alt="${item.title}" class="admin-prod-thumb" onerror="this.src='https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'">
       <div class="admin-prod-info">
-        <h5>${item.title}</h5>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
+          <h5>${item.title}</h5>
+          <span class="tier-badge ${item.approved ? 'pro' : 'free'}" style="white-space:nowrap;">${item.approved ? 'Live' : 'Pending'}</span>
+        </div>
         <p>${item.seller ? item.seller.display_name : 'Unknown seller'} • ${item.location}</p>
-        <div class="admin-prod-price">₦${Number(item.price).toLocaleString()}</div>
+        <div style="font-size:10px; color:var(--text-muted); margin-top:4px;">Seller asked ₦${Number(item.price).toLocaleString()}</div>
+        <div style="display:flex; align-items:center; gap:4px; margin-top:6px; background:rgba(255,255,255,0.06); border:1px solid var(--border-glass); border-radius:8px; padding:6px 10px;">
+          <span style="font-size:12px; color:var(--text-muted);">₦</span>
+          <input type="number" id="price-${item.id}" value="${item.price}" min="0" step="1"
+                 style="background:transparent; border:none; outline:none; color:#fff; font-size:13px; font-weight:700; width:100%;">
+        </div>
       </div>
       <div class="admin-prod-actions">
         ${item.approved
-          ? `<span class="btn-action-icon" style="color: var(--neon-green); border-color: var(--neon-green); cursor: default;"><i class="fa-solid fa-circle-check"></i> Live</span>`
+          ? `<button class="btn-action-icon" style="color: var(--neon-cyan); border-color: var(--neon-cyan);" onclick="savePrice('${item.id}')"><i class="fa-solid fa-floppy-disk"></i> Save Price</button>`
           : `<button class="btn-action-icon" style="color: var(--neon-green); border-color: var(--neon-green);" onclick="approveProduct('${item.id}')"><i class="fa-solid fa-check"></i> Approve</button>`
         }
         <button class="btn-action-icon delete" onclick="deleteItemAdmin('${item.id}')">
@@ -239,14 +247,30 @@ function renderProductsFeed(productsToRender) {
 }
 
 async function approveProduct(id) {
+  const input = document.getElementById(`price-${id}`);
+  const price = input ? input.value : undefined;
   try {
-    const { product } = await callAdminApi('approve-product', { productId: id });
+    const { product } = await callAdminApi('approve-product', { productId: id, price });
     adminProducts = adminProducts.map(p => (p.id === id ? { ...p, ...product } : p));
     renderProductsFeed(adminProducts);
     calculateMonitorStats();
-    showToast(`"${product.title}" approved and now live.`);
+    showToast(`"${product.title}" approved at ₦${Number(product.price).toLocaleString()} and now live.`);
   } catch (err) {
     showToast(err.message || "Couldn't approve that listing.");
+  }
+}
+
+async function savePrice(id) {
+  const input = document.getElementById(`price-${id}`);
+  const price = input ? input.value : undefined;
+  try {
+    const { product } = await callAdminApi('update-price', { productId: id, price });
+    adminProducts = adminProducts.map(p => (p.id === id ? { ...p, ...product } : p));
+    renderProductsFeed(adminProducts);
+    calculateMonitorStats();
+    showToast(`Price updated to ₦${Number(product.price).toLocaleString()}.`);
+  } catch (err) {
+    showToast(err.message || "Couldn't update price.");
   }
 }
 
