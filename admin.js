@@ -226,6 +226,7 @@ function renderProductsFeed(productsToRender) {
           <span class="tier-badge ${item.approved ? 'pro' : 'free'}" style="white-space:nowrap;">${item.approved ? 'Live' : 'Pending'}</span>
         </div>
         <p>${item.seller ? item.seller.display_name : 'Unknown seller'} • ${item.location}</p>
+        <p style="font-size:10px; color:var(--neon-cyan); margin-top:2px;"><i class="fa-brands fa-telegram"></i> Seller contact: ${item.contact}</p>
         <div style="font-size:10px; color:var(--text-muted); margin-top:4px;">Seller asked ₦${Number(item.price).toLocaleString()}</div>
         <div style="display:flex; align-items:center; gap:4px; margin-top:6px; background:rgba(255,255,255,0.06); border:1px solid var(--border-glass); border-radius:8px; padding:6px 10px;">
           <span style="font-size:12px; color:var(--text-muted);">₦</span>
