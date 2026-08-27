@@ -129,12 +129,12 @@ function calculateMonitorStats() {
 
   const pendingProducts = adminProducts.filter(p => !p.approved).length;
   const pendingUsers = adminUsers.filter(u => !u.can_sell).length;
-  const approvedListings = adminProducts.filter(p => p.approved).length;
+  const activeListings = adminProducts.filter(p => p.approved && !p.sold).length;
   const allowedSellers = adminUsers.filter(u => u.can_sell).length;
 
   document.getElementById('stat-gmv').innerText = `₦${gmv.toLocaleString()}`;
   document.getElementById('stat-revenue').innerText = `${pendingProducts + pendingUsers}`;
-  document.getElementById('stat-listings-count').innerText = approvedListings;
+  document.getElementById('stat-listings-count').innerText = activeListings;
   document.getElementById('stat-sellers-count').innerText = `${allowedSellers} / ${adminUsers.length}`;
 }
 
@@ -217,34 +217,65 @@ function renderProductsFeed(productsToRender) {
     return;
   }
 
-  grid.innerHTML = productsToRender.map(item => `
+  grid.innerHTML = productsToRender.map(item => {
+    const statusLabel = item.sold ? 'Sold' : (item.approved ? 'Live' : 'Pending');
+    const statusStyle = item.sold
+      ? 'background: rgba(34,197,94,0.15); color: var(--neon-green);'
+      : '';
+
+    let actionButtons;
+    if (item.sold) {
+      actionButtons = `<span class="btn-action-icon" style="color: var(--neon-green); border-color: var(--neon-green); cursor: default;"><i class="fa-solid fa-circle-check"></i> Sold</span>`;
+    } else if (item.approved) {
+      actionButtons = `
+        <button class="btn-action-icon" style="color: var(--neon-cyan); border-color: var(--neon-cyan);" onclick="savePrice('${item.id}')"><i class="fa-solid fa-floppy-disk"></i> Save Price</button>
+        <button class="btn-action-icon" style="color: var(--neon-magenta); border-color: var(--neon-magenta);" onclick="markSold('${item.id}')"><i class="fa-solid fa-bullhorn"></i> Confirm Payment</button>
+      `;
+    } else {
+      actionButtons = `<button class="btn-action-icon" style="color: var(--neon-green); border-color: var(--neon-green);" onclick="approveProduct('${item.id}')"><i class="fa-solid fa-check"></i> Approve</button>`;
+    }
+
+    return `
     <div class="admin-prod-card">
       <img src="${item.image}" alt="${item.title}" class="admin-prod-thumb" onerror="this.src='https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80'">
       <div class="admin-prod-info">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
           <h5>${item.title}</h5>
-          <span class="tier-badge ${item.approved ? 'pro' : 'free'}" style="white-space:nowrap;">${item.approved ? 'Live' : 'Pending'}</span>
+          <span class="tier-badge ${item.approved && !item.sold ? 'pro' : 'free'}" style="white-space:nowrap; ${statusStyle}">${statusLabel}</span>
         </div>
         <p>${item.seller ? item.seller.display_name : 'Unknown seller'} • ${item.location}</p>
         <p style="font-size:10px; color:var(--neon-cyan); margin-top:2px;"><i class="fa-brands fa-telegram"></i> Seller contact: ${item.contact}</p>
         <div style="font-size:10px; color:var(--text-muted); margin-top:4px;">Seller asked ₦${Number(item.price).toLocaleString()}</div>
         <div style="display:flex; align-items:center; gap:4px; margin-top:6px; background:rgba(255,255,255,0.06); border:1px solid var(--border-glass); border-radius:8px; padding:6px 10px;">
           <span style="font-size:12px; color:var(--text-muted);">₦</span>
-          <input type="number" id="price-${item.id}" value="${item.price}" min="0" step="1"
+          <input type="number" id="price-${item.id}" value="${item.price}" min="0" step="1" ${item.sold ? 'disabled' : ''}
                  style="background:transparent; border:none; outline:none; color:#fff; font-size:13px; font-weight:700; width:100%;">
         </div>
       </div>
       <div class="admin-prod-actions">
-        ${item.approved
-          ? `<button class="btn-action-icon" style="color: var(--neon-cyan); border-color: var(--neon-cyan);" onclick="savePrice('${item.id}')"><i class="fa-solid fa-floppy-disk"></i> Save Price</button>`
-          : `<button class="btn-action-icon" style="color: var(--neon-green); border-color: var(--neon-green);" onclick="approveProduct('${item.id}')"><i class="fa-solid fa-check"></i> Approve</button>`
-        }
+        ${actionButtons}
         <button class="btn-action-icon delete" onclick="deleteItemAdmin('${item.id}')">
           <i class="fa-solid fa-trash"></i> Remove
         </button>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
+}
+
+async function markSold(id) {
+  if (!confirm("Confirm payment received for this item? This marks it SOLD and announces it to your Telegram group.")) return;
+  try {
+    const { product, announcementSent, announcementError } = await callAdminApi('mark-sold', { productId: id });
+    adminProducts = adminProducts.map(p => (p.id === id ? { ...p, ...product } : p));
+    renderProductsFeed(adminProducts);
+    calculateMonitorStats();
+    showToast(announcementSent
+      ? `"${product.title}" marked SOLD and announced to the group!`
+      : `Marked SOLD, but the announcement didn't send: ${announcementError || 'unknown reason'}`);
+  } catch (err) {
+    showToast(err.message || "Couldn't mark that as sold.");
+  }
 }
 
 async function approveProduct(id) {
