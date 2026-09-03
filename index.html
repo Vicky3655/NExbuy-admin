@@ -59,12 +59,27 @@
         </div>
       </div>
       <div class="topbar-right">
+        <button class="btn-bell" id="btn-notif" onclick="toggleNotifPanel()" title="Notifications">
+          <i class="fa-solid fa-bell"></i>
+          <span class="notif-badge hidden" id="notif-badge">0</span>
+        </button>
         <button class="btn-refresh" onclick="refreshAdminData()" title="Reload Stats">
           <i class="fa-solid fa-rotate"></i>
         </button>
         <button class="btn-lock" onclick="lockAdmin()" title="Lock Portal">
           <i class="fa-solid fa-lock"></i>
         </button>
+      </div>
+
+      <!-- Live Notifications Dropdown -->
+      <div id="notif-panel" class="notif-panel hidden">
+        <div class="notif-panel-header">
+          <h4>Notifications</h4>
+          <button onclick="clearNotifications()">Clear all</button>
+        </div>
+        <div id="notif-list" class="notif-list">
+          <div class="notif-empty">You're all caught up — no notifications yet.</div>
+        </div>
       </div>
     </header>
 
@@ -133,40 +148,10 @@
         <div class="chart-card">
           <div class="card-header">
             <h4><i class="fa-solid fa-location-dot"></i> Trade Activity by Hostel Area</h4>
-            <span class="badge-tag">Nsukka Campus</span>
+            <span class="badge-tag" id="trade-activity-badge">Nsukka Campus</span>
           </div>
-          <div class="hostel-progress-list">
-            <div class="progress-row">
-              <div class="row-meta">
-                <span>Mary Slessor Hostel</span>
-                <strong id="bar-val-mary">40%</strong>
-              </div>
-              <div class="progress-track"><div class="progress-fill" style="width: 40%;"></div></div>
-            </div>
-
-            <div class="progress-row">
-              <div class="row-meta">
-                <span>Franco Hostel (UNN)</span>
-                <strong id="bar-val-franco">35%</strong>
-              </div>
-              <div class="progress-track"><div class="progress-fill" style="width: 35%; background: var(--neon-magenta);"></div></div>
-            </div>
-
-            <div class="progress-row">
-              <div class="row-meta">
-                <span>Hilltop & Odenigwe</span>
-                <strong id="bar-val-hilltop">15%</strong>
-              </div>
-              <div class="progress-track"><div class="progress-fill" style="width: 15%; background: var(--neon-cyan);"></div></div>
-            </div>
-
-            <div class="progress-row">
-              <div class="row-meta">
-                <span>Nkrumah & UNEC</span>
-                <strong id="bar-val-others">10%</strong>
-              </div>
-              <div class="progress-track"><div class="progress-fill" style="width: 10%; background: #f59e0b;"></div></div>
-            </div>
+          <div class="hostel-progress-list" id="hostel-progress-list">
+            <div style="text-align:center; padding:16px; color:var(--text-muted); font-size:12px;">Loading trade activity…</div>
           </div>
         </div>
 
